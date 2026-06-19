@@ -45,6 +45,7 @@ echo "Starting CI boot smoke test for ${seconds}s"
 "$binary" run \
     --kernel "$kernel" \
     --initrd "$initrd" \
+    --machine-id "$(dirname "$log_file")/MachineIdentifier" \
     --cpus 2 \
     --memory 1024 \
     --cmdline 'console=hvc0 init=/init panic=-1' \

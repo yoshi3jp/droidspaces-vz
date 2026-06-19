@@ -9,6 +9,7 @@ struct CommandLineFailure: Error, CustomStringConvertible {
 struct RunOptions {
     var kernelPath: String?
     var initrdPath: String?
+    var machineIdentifierPath: String?
     var cpuCount: Int = 2
     var memoryMiB: UInt64 = 1024
     var commandLine: String = "console=hvc0 init=/init"
@@ -102,6 +103,9 @@ enum DSVZ {
             case "--initrd":
                 options.initrdPath = try requireValue(for: arg)
 
+            case "--machine-id":
+                options.machineIdentifierPath = try requireValue(for: arg)
+
             case "--cpus":
                 let value = try requireValue(for: arg)
                 guard let cpus = Int(value), cpus > 0 else {
@@ -165,6 +169,11 @@ enum DSVZ {
         print("Starting Droidspaces VM")
         print("  kernel:  \(expandPath(options.kernelPath!))")
         print("  initrd:  \(expandPath(options.initrdPath!))")
+        if let machineIdentifierPath = options.machineIdentifierPath {
+            print("  machine: \(makeFileURL(machineIdentifierPath).path)")
+        } else {
+            print("  machine: <ephemeral>")
+        }
         print("  cpus:    \(options.cpuCount)")
         print("  memory:  \(options.memoryMiB) MiB")
         print("  cmdline: \(options.commandLine)")
@@ -190,16 +199,18 @@ enum DSVZ {
     ) throws -> VZVirtualMachineConfiguration {
         let configuration = VZVirtualMachineConfiguration()
 
-        configuration.platform = VZGenericPlatformConfiguration()
+        let platform = VZGenericPlatformConfiguration()
+        platform.machineIdentifier = try makeMachineIdentifier(
+            path: options.machineIdentifierPath
+        )
+        configuration.platform = platform
         configuration.cpuCount = options.cpuCount
         configuration.memorySize = options.memoryMiB * 1024 * 1024
 
         let bootLoader = VZLinuxBootLoader(
-            kernelURL: URL(fileURLWithPath: expandPath(options.kernelPath!))
+            kernelURL: makeFileURL(options.kernelPath!)
         )
-        bootLoader.initialRamdiskURL = URL(
-            fileURLWithPath: expandPath(options.initrdPath!)
-        )
+        bootLoader.initialRamdiskURL = makeFileURL(options.initrdPath!)
         bootLoader.commandLine = options.commandLine
         configuration.bootLoader = bootLoader
 
@@ -216,6 +227,51 @@ enum DSVZ {
 
         try configuration.validate()
         return configuration
+    }
+
+    private static func makeMachineIdentifier(
+        path: String?
+    ) throws -> VZGenericMachineIdentifier {
+        guard let path else {
+            return VZGenericMachineIdentifier()
+        }
+
+        let identifierURL = makeFileURL(path)
+        let fileManager = FileManager.default
+
+        if fileManager.fileExists(atPath: identifierURL.path) {
+            let data = try Data(contentsOf: identifierURL)
+            guard let identifier = VZGenericMachineIdentifier(
+                dataRepresentation: data
+            ) else {
+                throw CommandLineFailure(
+                    description: "invalid machine identifier: \(identifierURL.path)",
+                    exitCode: 1
+                )
+            }
+            return identifier
+        }
+
+        let directoryURL = identifierURL.deletingLastPathComponent()
+        try fileManager.createDirectory(
+            at: directoryURL,
+            withIntermediateDirectories: true
+        )
+
+        let identifier = VZGenericMachineIdentifier()
+        try identifier.dataRepresentation.write(to: identifierURL, options: [.atomic])
+        return identifier
+    }
+
+    private static func makeFileURL(_ path: String) -> URL {
+        let expanded = expandPath(path)
+
+        if expanded.hasPrefix("/") {
+            return URL(fileURLWithPath: expanded)
+        }
+
+        return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent(expanded)
     }
 
     private static func expandPath(_ path: String) -> String {
@@ -261,6 +317,7 @@ enum DSVZ {
         Options:
           --kernel <path>      Linux kernel image to boot
           --initrd <path>      Droidspaces initramfs image to load
+          --machine-id <path>  Persistent generic machine identifier file
           --cpus <count>       Virtual CPU count; default: 2
           --memory <MiB>       Guest memory size in MiB; default: 1024
           --cmdline <string>   Linux kernel command line

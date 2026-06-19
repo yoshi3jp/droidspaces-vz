@@ -19,6 +19,7 @@ scripts/sign-debug.sh .build/debug/dsvz
 .build/debug/dsvz run \
   --kernel ./bzImage \
   --initrd ./droidspaces-initramfs.cpio.gz \
+  --machine-id ./MachineIdentifier \
   --cpus 2 \
   --memory 1024 \
   --cmdline 'console=hvc0 init=/init'
@@ -26,6 +27,17 @@ scripts/sign-debug.sh .build/debug/dsvz
 
 The binary must be signed with `com.apple.security.virtualization` before it
 can launch a VM. See [`signing.md`](signing.md).
+
+## Machine identifier
+
+`dsvz run` creates a `VZGenericMachineIdentifier` for the generic Linux VM
+platform. If `--machine-id <path>` is supplied and the file does not yet exist,
+`dsvz` creates it. If the file already exists, `dsvz` reuses it.
+
+For disposable initramfs tests the option may be omitted, in which case an
+ephemeral identifier is used for that launch. Local boot-test bundles use a
+`MachineIdentifier` file in the extracted bundle directory so repeated runs use
+the same generic platform identity.
 
 ## Guest expectations
 

@@ -31,7 +31,7 @@ kernel/initramfs boot support:
 ```sh
 dsvz help
 dsvz version
-dsvz run --kernel ./bzImage --initrd ./droidspaces-initramfs.cpio.gz
+dsvz run --kernel ./bzImage --initrd ./droidspaces-initramfs.cpio.gz --machine-id ./MachineIdentifier
 ```
 
 Directory sharing, networking, persistent disks, and plist configuration are

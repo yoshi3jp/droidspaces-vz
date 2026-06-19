@@ -108,6 +108,7 @@ echo ""
 exec ./dsvz run \
     --kernel ./kernel \
     --initrd ./initramfs.cpio.gz \
+    --machine-id ./MachineIdentifier \
     --memory "$memory" \
     --cpus "$cpus" \
     --cmdline "$cmdline"
@@ -125,6 +126,7 @@ Contents:
   dsvz                 signed debug CLI built by GitHub Actions
   kernel               Droidspaces VZ Linux kernel image
   initramfs.cpio.gz    Droidspaces initramfs image
+  MachineIdentifier    created on first run by dsvz when missing
   run-local-smoke.sh   convenience launcher
 
 Basic local test:
