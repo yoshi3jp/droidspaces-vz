@@ -6,7 +6,9 @@ Apple's Virtualization.framework.
 The initial VM launch support is intentionally minimal. It attaches a serial
 console to the terminal and supplies entropy, but it does not yet attach host
 directory sharing, networking, persistent disks, or a plist configuration file.
-Those features are staged for later commits.
+Those features are staged for later commits. CI uses this command with
+architecture-matched kernel and ramfs artifacts to perform a short boot smoke
+test on macOS runners.
 
 ## Example
 

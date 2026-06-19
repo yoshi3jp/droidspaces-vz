@@ -35,7 +35,9 @@ dsvz run --kernel ./bzImage --initrd ./droidspaces-initramfs.cpio.gz
 ```
 
 Directory sharing, networking, persistent disks, and plist configuration are
-intentionally left for later commits.
+intentionally left for later commits. CI now downloads architecture-matched
+kernel and ramfs artifacts and performs a short boot smoke test on macOS
+runners.
 
 ## Build on macOS
 
@@ -53,13 +55,14 @@ entitlement file and a debug signing helper:
 scripts/sign-debug.sh .build/debug/dsvz
 ```
 
-See [`docs/signing.md`](docs/signing.md) for details. See [`docs/running.md`](docs/running.md) for the current VM launch flow.
+See [`docs/signing.md`](docs/signing.md) for details. See [`docs/running.md`](docs/running.md) for the current VM launch flow. See [`docs/ci-boot.md`](docs/ci-boot.md) for the CI boot smoke test.
 
 ## Planned stages
 
 1. Add SwiftPM CLI skeleton and CI.
 2. Add entitlement and signing documentation.
 3. Add direct Linux kernel/initramfs boot.
-4. Add `VZSingleDirectoryShare`.
-5. Add NAT networking.
-6. Add plist-based configuration.
+4. Download kernel/ramfs artifacts and boot-test them in CI.
+5. Add `VZSingleDirectoryShare`.
+6. Add NAT networking.
+7. Add plist-based configuration.

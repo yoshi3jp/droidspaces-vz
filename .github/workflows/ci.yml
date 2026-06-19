@@ -9,11 +9,13 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   swiftpm:
     name: SwiftPM / ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
@@ -22,9 +24,13 @@ jobs:
           - name: macOS 26 Intel
             runner: macos-26-intel
             expected_arch: x86_64
+            kernel_url: https://github.com/yoshi3jp/vz-kernel/releases/download/v6.12.93/kernel-x86_64-6.12.93.tar.zst
+            ramfs_artifact_id: '7731337868'
           - name: macOS 26 arm64
             runner: macos-26
             expected_arch: arm64
+            kernel_url: https://github.com/yoshi3jp/vz-kernel/releases/download/v6.12.93/kernel-arm64-6.12.93.tar.zst
+            ramfs_artifact_id: '7731381874'
 
     steps:
       - name: Checkout
@@ -40,6 +46,12 @@ jobs:
           xcodebuild -version
           swift --version
 
+      - name: Install CI tools
+        run: |
+          if ! command -v zstd >/dev/null 2>&1; then
+            brew install zstd
+          fi
+
       - name: Build
         run: swift build -v
 
@@ -54,3 +66,24 @@ jobs:
           .build/debug/dsvz version
           .build/debug/dsvz help
           .build/debug/dsvz run --help
+
+      - name: Fetch kernel and ramfs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          scripts/fetch-ci-payload.sh \
+            "${{ matrix.expected_arch }}" \
+            "${{ matrix.kernel_url }}" \
+            "${{ matrix.ramfs_artifact_id }}" \
+            ci-payload
+
+      - name: Boot kernel and ramfs
+        run: |
+          kernel="$(cat ci-payload/kernel.path)"
+          initrd="$(cat ci-payload/initrd.path)"
+          scripts/ci-boot-smoke.sh \
+            .build/debug/dsvz \
+            "$kernel" \
+            "$initrd" \
+            ci-boot.log \
+            30
