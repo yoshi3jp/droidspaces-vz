@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  swiftpm:
+    name: SwiftPM / ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS 26 Intel
+            runner: macos-26
+            expected_arch: x86_64
+          - name: macOS 26 arm64
+            runner: macos-26-arm64
+            expected_arch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show host and toolchain
+        run: |
+          sw_vers
+          uname -a
+          echo "expected arch: ${{ matrix.expected_arch }}"
+          echo "actual arch:   $(uname -m)"
+          test "$(uname -m)" = "${{ matrix.expected_arch }}"
+          xcodebuild -version
+          swift --version
+
+      - name: Build
+        run: swift build -v
+
+      - name: Smoke test
+        run: |
+          swift run dsvz version
+          swift run dsvz help
