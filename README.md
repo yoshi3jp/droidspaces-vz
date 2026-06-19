@@ -25,14 +25,17 @@ runners are used as the initial compiler/test environment.
 
 ## Current stage
 
-The current implementation provides a SwiftPM CLI skeleton:
+The current implementation provides a SwiftPM CLI with direct Linux
+kernel/initramfs boot support:
 
 ```sh
 dsvz help
 dsvz version
+dsvz run --kernel ./bzImage --initrd ./droidspaces-initramfs.cpio.gz
 ```
 
-VM launch support will be added in later commits.
+Directory sharing, networking, persistent disks, and plist configuration are
+intentionally left for later commits.
 
 ## Build on macOS
 
@@ -50,7 +53,7 @@ entitlement file and a debug signing helper:
 scripts/sign-debug.sh .build/debug/dsvz
 ```
 
-See [`docs/signing.md`](docs/signing.md) for details.
+See [`docs/signing.md`](docs/signing.md) for details. See [`docs/running.md`](docs/running.md) for the current VM launch flow.
 
 ## Planned stages
 
