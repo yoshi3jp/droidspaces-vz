@@ -77,13 +77,82 @@ jobs:
             "${{ matrix.ramfs_artifact_id }}" \
             ci-payload
 
-      - name: Boot kernel and ramfs
+      - name: Package local boot-test bundle
         run: |
-          kernel="$(cat ci-payload/kernel.path)"
-          initrd="$(cat ci-payload/initrd.path)"
-          scripts/ci-boot-smoke.sh \
+          scripts/package-ci-bundle.sh \
+            "${{ matrix.expected_arch }}" \
             .build/debug/dsvz \
-            "$kernel" \
-            "$initrd" \
-            ci-boot.log \
-            30
+            ci-payload \
+            dist
+
+      - name: Upload local boot-test bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsvz-macos-${{ matrix.expected_arch }}
+          path: |
+            dist/dsvz-macos-${{ matrix.expected_arch }}.tar.gz
+            dist/dsvz-macos-${{ matrix.expected_arch }}.tar.gz.sha256
+          if-no-files-found: error
+
+  release:
+    name: Publish ci-latest release
+    needs: swiftpm
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download packaged bundles
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dsvz-macos-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Show release assets
+        run: find release-assets -maxdepth 1 -type f -print | sort
+
+      - name: Publish ci-latest prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          tag=ci-latest
+          notes_file=$(mktemp)
+
+          cat > "$notes_file" <<EOF_NOTES
+          Automated development prerelease for local Droidspaces VZ boot testing.
+
+          Commit: $GITHUB_SHA
+
+          Download the archive matching your Mac architecture, extract it, and run:
+
+              ./run-local-smoke.sh
+
+          GitHub-hosted macOS runners currently build and sign dsvz, but VM boot
+          testing is expected to be performed on real local Mac hardware.
+          EOF_NOTES
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release delete "$tag" --yes --cleanup-tag
+          else
+            git push --delete origin "$tag" >/dev/null 2>&1 || true
+          fi
+
+          git tag -f "$tag" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$tag"
+
+          gh release create "$tag" \
+            release-assets/* \
+            --title "Droidspaces VZ CI latest" \
+            --notes-file "$notes_file" \
+            --prerelease \
+            --latest=false
