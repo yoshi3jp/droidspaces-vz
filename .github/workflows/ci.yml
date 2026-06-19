@@ -43,7 +43,13 @@ jobs:
       - name: Build
         run: swift build -v
 
-      - name: Smoke test
+      - name: Sign debug binary
+        run: scripts/sign-debug.sh .build/debug/dsvz
+
+      - name: Show entitlements
+        run: codesign --display --entitlements :- .build/debug/dsvz
+
+      - name: Smoke test signed binary
         run: |
-          swift run dsvz version
-          swift run dsvz help
+          .build/debug/dsvz version
+          .build/debug/dsvz help
