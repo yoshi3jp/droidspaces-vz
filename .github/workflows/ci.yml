@@ -24,12 +24,12 @@ jobs:
           - name: macOS 26 Intel
             runner: macos-26-intel
             expected_arch: x86_64
-            kernel_url: https://github.com/yoshi3jp/vz-kernel/releases/download/v6.12.93/kernel-x86_64-6.12.93.tar.zst
+            kernel_url: https://github.com/yoshi3jp/vz-kernel/releases/download/v6.12.94/kernel-x86_64-6.12.94.tar.zst
             ramfs_artifact_id: '7731337868'
           - name: macOS 26 arm64
             runner: macos-26
             expected_arch: arm64
-            kernel_url: https://github.com/yoshi3jp/vz-kernel/releases/download/v6.12.93/kernel-arm64-6.12.93.tar.zst
+            kernel_url: https://github.com/yoshi3jp/vz-kernel/releases/download/v6.12.94/kernel-arm64-6.12.94.tar.zst
             ramfs_artifact_id: '7731381874'
 
     steps:
