@@ -3,12 +3,11 @@
 `dsvz run` boots a Linux kernel and Droidspaces initramfs directly using
 Apple's Virtualization.framework.
 
-The initial VM launch support is intentionally minimal. It attaches a serial
-console to the terminal and supplies entropy, but it does not yet attach host
-directory sharing, networking, persistent disks, or a plist configuration file.
-Those features are staged for later commits. CI uses this command with
-architecture-matched kernel and ramfs artifacts to perform a short boot smoke
-test on macOS runners.
+The current VM launch path attaches a serial console, entropy, and one writable
+host directory shared with the guest through VirtIO-FS. Networking, persistent
+virtual disks, and plist configuration remain staged for later commits. CI uses
+this command with architecture-matched kernel and ramfs artifacts to package
+local boot-test bundles for real Mac hardware.
 
 ## Example
 
@@ -20,6 +19,8 @@ scripts/sign-debug.sh .build/debug/dsvz
   --kernel ./bzImage \
   --initrd ./droidspaces-initramfs.cpio.gz \
   --machine-id ./MachineIdentifier \
+  --share ./DroidspacesData \
+  --share-tag dsdata \
   --cpus 2 \
   --memory 1024 \
   --cmdline 'console=hvc0 init=/init'
@@ -39,10 +40,20 @@ ephemeral identifier is used for that launch. Local boot-test bundles use a
 `MachineIdentifier` file in the extracted bundle directory so repeated runs use
 the same generic platform identity.
 
+## Host directory sharing
+
+`dsvz run` requires `--share <directory>`. It creates that directory when it is
+missing and exposes it read-write through a VirtIO-FS device. The default tag is
+`dsdata`, which the Droidspaces initramfs mounts at `/mnt/host`.
+
+See [`sharing.md`](sharing.md) for the host/guest storage contract and bundle
+layout.
+
 ## Guest expectations
 
-The initramfs should provide an `/init` entry point and should print to the
-VirtIO console. The default kernel command line is:
+The initramfs should provide an `/init` entry point, print to the VirtIO console,
+and mount the `dsdata` VirtIO-FS tag at `/mnt/host`. The default kernel command
+line is:
 
 ```text
 console=hvc0 init=/init

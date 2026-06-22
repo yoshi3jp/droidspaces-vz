@@ -12,6 +12,7 @@ Creates a downloadable local boot-test bundle containing:
   kernel
   initramfs.cpio.gz
   run-local-smoke.sh
+  DroidspacesData/
   README.local.txt
 USAGE
 }
@@ -79,6 +80,19 @@ cp "$kernel_path" "$staging/kernel"
 cp "$initrd_path" "$staging/initramfs.cpio.gz"
 chmod +x "$staging/dsvz"
 
+mkdir -p "$staging/DroidspacesData"
+cat > "$staging/DroidspacesData/README.txt" <<'EOF_SHARE'
+Droidspaces host data directory
+===============================
+
+This directory is shared read-write with the guest through VirtIO-FS using the
+dsdata tag. The Droidspaces initramfs mounts it at /mnt/host.
+
+Commit 7 establishes this share boundary. A later commit will populate
+RootfsTarballs/, Images/, Containers/, Config/, Logs/, and Cache/ as part of
+the first-container deployment flow.
+EOF_SHARE
+
 cat > "$staging/run-local-smoke.sh" <<'RUNNER'
 #!/bin/sh
 set -eu
@@ -97,11 +111,21 @@ fi
 memory=${DSVZ_MEMORY:-1024}
 cpus=${DSVZ_CPUS:-2}
 cmdline=${DSVZ_CMDLINE:-console=hvc0 init=/init panic=-1}
+share=${DSVZ_SHARE:-./DroidspacesData}
+share_tag=${DSVZ_SHARE_TAG:-dsdata}
+
+mkdir -p "$share"
+
+for directory in Config RootfsTarballs Images Containers Logs Cache; do
+    mkdir -p "$share/$directory"
+done
 
 echo "Starting local Droidspaces VZ smoke test"
 echo "  host arch: $expected_arch"
 echo "  memory:    ${memory} MiB"
 echo "  cpus:      ${cpus}"
+echo "  share:     ${share}"
+echo "  share tag: ${share_tag}"
 echo "  cmdline:   ${cmdline}"
 echo ""
 
@@ -109,6 +133,8 @@ exec ./dsvz run \
     --kernel ./kernel \
     --initrd ./initramfs.cpio.gz \
     --machine-id ./MachineIdentifier \
+    --share "$share" \
+    --share-tag "$share_tag" \
     --memory "$memory" \
     --cpus "$cpus" \
     --cmdline "$cmdline"
@@ -127,6 +153,7 @@ Contents:
   kernel               Droidspaces VZ Linux kernel image
   initramfs.cpio.gz    Droidspaces initramfs image
   MachineIdentifier    created on first run by dsvz when missing
+  DroidspacesData/     writable VirtIO-FS host share
   run-local-smoke.sh   convenience launcher
 
 Basic local test:
@@ -141,7 +168,12 @@ that attribute from the extracted directory before running the test:
 You can override the VM size and kernel command line:
 
   DSVZ_MEMORY=2048 DSVZ_CPUS=2 ./run-local-smoke.sh
+  DSVZ_SHARE=/path/to/DroidspacesData ./run-local-smoke.sh
+  DSVZ_SHARE_TAG=dsdata ./run-local-smoke.sh
   DSVZ_CMDLINE='console=hvc0 init=/init panic=-1' ./run-local-smoke.sh
+
+The default DroidspacesData directory is exposed read-write to the guest over
+VirtIO-FS with the dsdata tag. The initramfs mounts it at /mnt/host.
 
 This bundle is intended for local Mac hardware. GitHub-hosted macOS runners are
 used to compile, sign, and package the binary, but VM boot testing is performed

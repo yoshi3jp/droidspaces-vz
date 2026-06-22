@@ -44,6 +44,7 @@ dsvz
 kernel
 initramfs.cpio.gz
 run-local-smoke.sh
+DroidspacesData/
 README.local.txt
 ```
 
@@ -58,6 +59,10 @@ Download the archive matching the Mac architecture, extract it, and run:
 ```sh
 ./run-local-smoke.sh
 ```
+
+The launcher uses `./DroidspacesData` as the default writable host share. It is
+attached to the guest as VirtIO-FS tag `dsdata`, which the Droidspaces
+initramfs mounts at `/mnt/host`.
 
 If the archive was downloaded through a browser and macOS quarantined it, clear
 that attribute from the extracted directory:

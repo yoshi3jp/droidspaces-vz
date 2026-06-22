@@ -40,12 +40,16 @@ if [ ! -f "$initrd" ]; then
 fi
 
 rm -f "$log_file"
+share_dir="$(dirname "$log_file")/DroidspacesData"
+mkdir -p "$share_dir"
 
 echo "Starting CI boot smoke test for ${seconds}s"
 "$binary" run \
     --kernel "$kernel" \
     --initrd "$initrd" \
     --machine-id "$(dirname "$log_file")/MachineIdentifier" \
+    --share "$share_dir" \
+    --share-tag dsdata \
     --cpus 2 \
     --memory 1024 \
     --cmdline 'console=hvc0 init=/init panic=-1' \

@@ -31,13 +31,19 @@ kernel/initramfs boot support:
 ```sh
 dsvz help
 dsvz version
-dsvz run --kernel ./bzImage --initrd ./droidspaces-initramfs.cpio.gz --machine-id ./MachineIdentifier
+dsvz run \
+  --kernel ./bzImage \
+  --initrd ./droidspaces-initramfs.cpio.gz \
+  --machine-id ./MachineIdentifier \
+  --share ./DroidspacesData
 ```
 
-Directory sharing, networking, persistent disks, and plist configuration are
-intentionally left for later commits. CI downloads architecture-matched kernel
-and ramfs artifacts, packages them with the signed CLI, and publishes local
-boot-test bundles for real Mac hardware.
+The current command attaches `DroidspacesData` as a writable VirtIO-FS host
+share using the `dsdata` tag. The Droidspaces initramfs mounts that tag at
+`/mnt/host`. Networking, persistent disks, and plist configuration remain for
+later commits. CI downloads architecture-matched kernel and ramfs artifacts,
+packages them with the signed CLI, and publishes local boot-test bundles for
+real Mac hardware.
 
 ## Build on macOS
 
@@ -55,7 +61,7 @@ entitlement file and a debug signing helper:
 scripts/sign-debug.sh .build/debug/dsvz
 ```
 
-See [`docs/signing.md`](docs/signing.md) for details. See [`docs/running.md`](docs/running.md) for the current VM launch flow. See [`docs/ci-boot.md`](docs/ci-boot.md) for CI payload packaging and local boot testing.
+See [`docs/signing.md`](docs/signing.md) for details. See [`docs/running.md`](docs/running.md) for the current VM launch flow, [`docs/sharing.md`](docs/sharing.md) for the VirtIO-FS host-share contract, and [`docs/ci-boot.md`](docs/ci-boot.md) for CI payload packaging and local boot testing.
 
 ## Planned stages
 
@@ -64,5 +70,6 @@ See [`docs/signing.md`](docs/signing.md) for details. See [`docs/running.md`](do
 3. Add direct Linux kernel/initramfs boot.
 4. Download kernel/ramfs artifacts and publish local boot-test bundles.
 5. Add `VZSingleDirectoryShare`.
-6. Add NAT networking.
-7. Add plist-based configuration.
+6. Import a rootfs tarball and start the first Droidspaces container.
+7. Add NAT networking.
+8. Add plist-based configuration.

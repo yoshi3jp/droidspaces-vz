@@ -10,6 +10,8 @@ struct RunOptions {
     var kernelPath: String?
     var initrdPath: String?
     var machineIdentifierPath: String?
+    var sharePath: String?
+    var shareTag: String = "dsdata"
     var cpuCount: Int = 2
     var memoryMiB: UInt64 = 1024
     var commandLine: String = "console=hvc0 init=/init"
@@ -106,6 +108,12 @@ enum DSVZ {
             case "--machine-id":
                 options.machineIdentifierPath = try requireValue(for: arg)
 
+            case "--share":
+                options.sharePath = try requireValue(for: arg)
+
+            case "--share-tag":
+                options.shareTag = try requireValue(for: arg)
+
             case "--cpus":
                 let value = try requireValue(for: arg)
                 guard let cpus = Int(value), cpus > 0 else {
@@ -157,6 +165,13 @@ enum DSVZ {
             )
         }
 
+        guard options.sharePath != nil else {
+            throw CommandLineFailure(
+                description: "run requires --share <directory>",
+                exitCode: 2
+            )
+        }
+
         return options
     }
 
@@ -174,6 +189,8 @@ enum DSVZ {
         } else {
             print("  machine: <ephemeral>")
         }
+        print("  share:   \(makeFileURL(options.sharePath!).path)")
+        print("  tag:     \(options.shareTag)")
         print("  cpus:    \(options.cpuCount)")
         print("  memory:  \(options.memoryMiB) MiB")
         print("  cmdline: \(options.commandLine)")
@@ -225,8 +242,56 @@ enum DSVZ {
             VZVirtioEntropyDeviceConfiguration()
         ]
 
+        configuration.directorySharingDevices = [
+            try makeDirectorySharingDevice(
+                path: options.sharePath!,
+                tag: options.shareTag
+            )
+        ]
+
         try configuration.validate()
         return configuration
+    }
+
+    private static func makeDirectorySharingDevice(
+        path: String,
+        tag: String
+    ) throws -> VZVirtioFileSystemDeviceConfiguration {
+        do {
+            try VZVirtioFileSystemDeviceConfiguration.validateTag(tag)
+        } catch {
+            throw CommandLineFailure(
+                description: "invalid VirtIO-FS share tag: \(tag)",
+                exitCode: 2
+            )
+        }
+
+        let shareURL = makeFileURL(path)
+        let fileManager = FileManager.default
+        var isDirectory: ObjCBool = false
+
+        if fileManager.fileExists(
+            atPath: shareURL.path,
+            isDirectory: &isDirectory
+        ) {
+            guard isDirectory.boolValue else {
+                throw CommandLineFailure(
+                    description: "share path is not a directory: \(shareURL.path)",
+                    exitCode: 1
+                )
+            }
+        } else {
+            try fileManager.createDirectory(
+                at: shareURL,
+                withIntermediateDirectories: true
+            )
+        }
+
+        let sharedDirectory = VZSharedDirectory(url: shareURL, readOnly: false)
+        let share = VZSingleDirectoryShare(directory: sharedDirectory)
+        let device = VZVirtioFileSystemDeviceConfiguration(tag: tag)
+        device.share = share
+        return device
     }
 
     private static func makeMachineIdentifier(
@@ -312,12 +377,14 @@ enum DSVZ {
         \(name) run - boot a Droidspaces Linux kernel and initramfs
 
         Usage:
-          \(name) run --kernel <path> --initrd <path> [options]
+          \(name) run --kernel <path> --initrd <path> --share <directory> [options]
 
         Options:
           --kernel <path>      Linux kernel image to boot
           --initrd <path>      Droidspaces initramfs image to load
           --machine-id <path>  Persistent generic machine identifier file
+          --share <directory>  Writable host directory to expose to the guest
+          --share-tag <tag>    VirtIO-FS tag for --share; default: dsdata
           --cpus <count>       Virtual CPU count; default: 2
           --memory <MiB>       Guest memory size in MiB; default: 1024
           --cmdline <string>   Linux kernel command line
@@ -326,8 +393,10 @@ enum DSVZ {
         Default kernel command line:
           console=hvc0 init=/init
 
-        This command intentionally performs only direct kernel/initramfs boot.
-        Directory sharing and networking will be added in later commits.
+        The shared directory is exposed through VirtIO-FS. The current
+        Droidspaces initramfs mounts the default dsdata tag at /mnt/host.
+        Networking, persistent virtual disks, and plist configuration will be
+        added in later commits.
         """)
     }
 }
