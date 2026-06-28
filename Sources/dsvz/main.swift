@@ -193,6 +193,7 @@ enum DSVZ {
         print("  tag:     \(options.shareTag)")
         print("  cpus:    \(options.cpuCount)")
         print("  memory:  \(options.memoryMiB) MiB")
+        print("  network: \(networkDescription(for: configuration))")
         print("  cmdline: \(options.commandLine)")
         print("")
 
@@ -242,6 +243,10 @@ enum DSVZ {
             VZVirtioEntropyDeviceConfiguration()
         ]
 
+        configuration.networkDevices = [
+            makeNATNetworkDevice()
+        ]
+
         configuration.directorySharingDevices = [
             try makeDirectorySharingDevice(
                 path: options.sharePath!,
@@ -251,6 +256,24 @@ enum DSVZ {
 
         try configuration.validate()
         return configuration
+    }
+
+    private static func makeNATNetworkDevice()
+        -> VZVirtioNetworkDeviceConfiguration {
+        let device = VZVirtioNetworkDeviceConfiguration()
+        device.attachment = VZNATNetworkDeviceAttachment()
+        device.macAddress = VZMACAddress.randomLocallyAdministered()
+        return device
+    }
+
+    private static func networkDescription(
+        for configuration: VZVirtualMachineConfiguration
+    ) -> String {
+        guard let networkDevice = configuration.networkDevices.first else {
+            return "unavailable"
+        }
+
+        return "macOS NAT (MAC \(networkDevice.macAddress.string))"
     }
 
     private static func makeDirectorySharingDevice(
@@ -395,8 +418,10 @@ enum DSVZ {
 
         The shared directory is exposed through VirtIO-FS. The current
         Droidspaces initramfs mounts the default dsdata tag at /mnt/host.
-        Networking, persistent virtual disks, and plist configuration will be
-        added in later commits.
+        A VirtIO network device is attached through macOS NAT. The guest
+        initramfs must bring the device up and configure it with DHCP.
+        Persistent virtual disks and plist configuration will be added in later
+        commits.
         """)
     }
 }

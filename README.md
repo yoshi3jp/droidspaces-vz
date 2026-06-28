@@ -39,11 +39,12 @@ dsvz run \
 ```
 
 The current command attaches `DroidspacesData` as a writable VirtIO-FS host
-share using the `dsdata` tag. The Droidspaces initramfs mounts that tag at
-`/mnt/host`. Networking, persistent disks, and plist configuration remain for
-later commits. CI downloads architecture-matched kernel and ramfs artifacts,
-packages them with the signed CLI, and publishes local boot-test bundles for
-real Mac hardware.
+share using the `dsdata` tag and presents one VirtIO network device backed by
+macOS NAT. The Droidspaces initramfs mounts that tag at `/mnt/host`; guest-side
+DHCP and resolver setup remain separate initramfs work. Persistent disks and
+plist configuration remain for later commits. CI downloads architecture-matched
+kernel and ramfs artifacts, packages them with the signed CLI, and publishes
+local boot-test bundles for real Mac hardware.
 
 ## Build on macOS
 
@@ -61,7 +62,7 @@ entitlement file and a debug signing helper:
 scripts/sign-debug.sh .build/debug/dsvz
 ```
 
-See [`docs/signing.md`](docs/signing.md) for details. See [`docs/running.md`](docs/running.md) for the current VM launch flow, [`docs/sharing.md`](docs/sharing.md) for the VirtIO-FS host-share contract, and [`docs/ci-boot.md`](docs/ci-boot.md) for CI payload packaging and local boot testing.
+See [`docs/signing.md`](docs/signing.md) for details. See [`docs/running.md`](docs/running.md) for the current VM launch flow, [`docs/sharing.md`](docs/sharing.md) for the VirtIO-FS host-share contract, [`docs/networking.md`](docs/networking.md) for the macOS NAT boundary, and [`docs/ci-boot.md`](docs/ci-boot.md) for CI payload packaging and local boot testing.
 
 ## Planned stages
 
@@ -71,5 +72,6 @@ See [`docs/signing.md`](docs/signing.md) for details. See [`docs/running.md`](do
 4. Download kernel/ramfs artifacts and publish local boot-test bundles.
 5. Add `VZSingleDirectoryShare`.
 6. Import a rootfs tarball and start the first Droidspaces container.
-7. Add NAT networking.
+7. Configure the guest-side DHCP and resolver path.
 8. Add plist-based configuration.
+9. Add optional bridged networking.

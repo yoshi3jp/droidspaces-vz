@@ -3,11 +3,12 @@
 `dsvz run` boots a Linux kernel and Droidspaces initramfs directly using
 Apple's Virtualization.framework.
 
-The current VM launch path attaches a serial console, entropy, and one writable
-host directory shared with the guest through VirtIO-FS. Networking, persistent
-virtual disks, and plist configuration remain staged for later commits. CI uses
-this command with architecture-matched kernel and ramfs artifacts to package
-local boot-test bundles for real Mac hardware.
+The current VM launch path attaches a serial console, entropy, one writable
+host directory shared with the guest through VirtIO-FS, and one VirtIO network
+device attached to macOS NAT. Persistent virtual disks and plist configuration
+remain staged for later commits. CI uses this command with architecture-matched
+kernel and ramfs artifacts to package local boot-test bundles for real Mac
+hardware.
 
 ## Example
 
@@ -61,3 +62,15 @@ console=hvc0 init=/init
 
 A minimal initramfs can use `/dev/hvc0` as its console and does not need a root
 block device for this first stage.
+
+## Guest networking
+
+`dsvz` presents one VirtIO network device backed by
+`VZNATNetworkDeviceAttachment`. The device gets a locally administered MAC
+address generated for the VM launch. The `dsvz` startup output prints that MAC
+address with the `network:` line.
+
+The host-side attachment only exposes the guest NIC. The initramfs must bring
+that NIC up, obtain an address with DHCP, and configure resolver state before
+Droidspaces depends on external connectivity. See [`networking.md`](networking.md)
+for the host/guest boundary and first-boot checks.
