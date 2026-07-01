@@ -1,9 +1,59 @@
+import Darwin
 import Foundation
 import Virtualization
 
 struct CommandLineFailure: Error, CustomStringConvertible {
     let description: String
     let exitCode: Int32
+}
+
+final class ConsoleTerminal {
+    private var savedAttributes: termios?
+
+    func enableRawInputIfInteractive() throws {
+        guard isatty(STDIN_FILENO) == 1 else {
+            return
+        }
+
+        var original = termios()
+        guard tcgetattr(STDIN_FILENO, &original) == 0 else {
+            throw terminalFailure("could not read terminal attributes")
+        }
+
+        var raw = original
+        cfmakeraw(&raw)
+
+        // The serial attachment needs raw input, but leave host-side output
+        // processing alone so normal console output retains its terminal form.
+        raw.c_oflag = original.c_oflag
+
+        guard tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == 0 else {
+            throw terminalFailure("could not enable raw terminal input")
+        }
+
+        savedAttributes = original
+    }
+
+    func restore() {
+        guard var savedAttributes else {
+            return
+        }
+
+        _ = tcsetattr(STDIN_FILENO, TCSAFLUSH, &savedAttributes)
+        self.savedAttributes = nil
+    }
+
+    deinit {
+        restore()
+    }
+
+    private func terminalFailure(_ operation: String) -> CommandLineFailure {
+        let errorNumber = errno
+        return CommandLineFailure(
+            description: "\(operation): \(String(cString: strerror(errorNumber)))",
+            exitCode: 1
+        )
+    }
 }
 
 struct RunOptions {
@@ -18,7 +68,14 @@ struct RunOptions {
 }
 
 final class VMDelegate: NSObject, VZVirtualMachineDelegate {
+    private let consoleTerminal: ConsoleTerminal
+
+    init(consoleTerminal: ConsoleTerminal) {
+        self.consoleTerminal = consoleTerminal
+    }
+
     func guestDidStop(_ virtualMachine: VZVirtualMachine) {
+        consoleTerminal.restore()
         print("\nVM stopped")
         exit(0)
     }
@@ -27,6 +84,7 @@ final class VMDelegate: NSObject, VZVirtualMachineDelegate {
         _ virtualMachine: VZVirtualMachine,
         didStopWithError error: Error
     ) {
+        consoleTerminal.restore()
         fputs("\nVM stopped with error: \(error)\n", stderr)
         exit(1)
     }
@@ -177,8 +235,12 @@ enum DSVZ {
 
     private static func run(_ options: RunOptions) throws {
         let configuration = try makeVirtualMachineConfiguration(options)
+        let consoleTerminal = ConsoleTerminal()
+        try consoleTerminal.enableRawInputIfInteractive()
+        defer { consoleTerminal.restore() }
+
         let virtualMachine = VZVirtualMachine(configuration: configuration)
-        let delegate = VMDelegate()
+        let delegate = VMDelegate(consoleTerminal: consoleTerminal)
         virtualMachine.delegate = delegate
 
         print("Starting Droidspaces VM")
@@ -202,6 +264,7 @@ enum DSVZ {
             case .success:
                 print("VM started")
             case .failure(let error):
+                consoleTerminal.restore()
                 fputs("failed to start VM: \(error)\n", stderr)
                 exit(1)
             }
